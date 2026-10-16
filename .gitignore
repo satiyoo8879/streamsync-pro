@@ -1,0 +1,5 @@
+node_modules/
+dist/
+viewers_db.json
+daftar_momen_clip.txt
+.env

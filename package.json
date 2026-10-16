@@ -1,0 +1,20 @@
+{
+  "name": "streamsync-app",
+  "version": "1.0.0",
+  "description": "Aplikasi Profesional Pembaca Chat YouTube & TikTok + Auto-Clipper",
+  "main": "main.js",
+  "scripts": {
+    "start": "electron .",
+    "build-exe": "electron-packager . StreamSyncPro --platform=win32 --arch=x64 --icon=ico.ico --out=dist --overwrite"
+  },
+  "dependencies": {
+    "express": "^4.19.2",
+    "socket.io": "^4.7.5",
+    "tiktok-live-connector": "^2.0.0",
+    "youtubei.js": "^10.0.0"
+  },
+  "devDependencies": {
+    "electron": "^31.0.0",
+    "electron-packager": "^17.1.2"
+  }
+}

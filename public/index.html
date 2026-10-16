@@ -1,0 +1,1242 @@
+<!DOCTYPE html>
+<html lang="id" class="dark">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <title>StreamSync Pro — Dual Stream Studio</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script src="/socket.io/socket.io.js"></script>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@500;600&family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+  <style>
+    :root {
+      color-scheme: dark;
+      --ui-opacity: 1;
+      --shell-bg: #2B2638;
+      --card-bg: #393348;
+      --card-elevated: #453E57;
+      --accent-gold: #B6895B;
+      --accent-mint: #CBE8E0;
+      --accent-sand: #EBE1CE;
+    }
+    * {
+      box-sizing: border-box;
+      -webkit-tap-highlight-color: transparent;
+    }
+    body {
+      font-family: 'Plus Jakarta Sans', -apple-system, BlinkMacSystemFont, sans-serif;
+      background-color: #231E2E;
+      color: #F5F3F9;
+      -webkit-font-smoothing: antialiased;
+    }
+    .font-mono-code {
+      font-family: 'JetBrains Mono', monospace;
+    }
+
+    /* Main Plum-Charcoal App Shell inspired by reference */
+    .app-shell {
+      background:
+        radial-gradient(circle at 15% 10%, rgba(167, 139, 250, 0.08), transparent 40%),
+        radial-gradient(circle at 85% 90%, rgba(232, 222, 200, 0.05), transparent 40%),
+        rgba(43, 38, 56, var(--ui-opacity));
+    }
+
+    .surface-card {
+      background-color: rgba(57, 51, 72, calc(var(--ui-opacity) * 0.94));
+      border: 1px solid rgba(255, 255, 255, 0.07);
+      box-shadow: 0 20px 40px -15px rgba(15, 12, 22, 0.45);
+    }
+
+    .surface-inner {
+      background-color: rgba(69, 62, 87, calc(var(--ui-opacity) * 0.75));
+      border: 1px solid rgba(255, 255, 255, 0.06);
+    }
+
+    .pill-input {
+      background-color: #383247;
+      border: 1px solid rgba(255, 255, 255, 0.08);
+      transition: all 0.2s ease;
+    }
+    .pill-input:focus-within {
+      background-color: #413A52;
+      border-color: rgba(255, 255, 255, 0.28);
+      box-shadow: 0 0 0 3px rgba(255, 255, 255, 0.06);
+    }
+
+    /* Featured Right Card Gradient */
+    .featured-panel {
+      background:
+        linear-gradient(165deg, rgba(216, 207, 232, 0.14) 0%, rgba(57, 51, 72, 0.96) 45%, rgba(74, 62, 75, 0.95) 100%);
+      border: 1px solid rgba(255, 255, 255, 0.1);
+      box-shadow: 0 24px 48px -12px rgba(12, 10, 18, 0.55);
+    }
+
+    /* Pastel Highlight Cards */
+    .pastel-card-lavender {
+      background: linear-gradient(145deg, rgba(214, 210, 236, 0.16) 0%, rgba(57, 51, 72, 0.95) 100%);
+      border: 1px solid rgba(214, 210, 236, 0.18);
+    }
+    .pastel-card-mint {
+      background: linear-gradient(145deg, rgba(203, 232, 224, 0.15) 0%, rgba(57, 51, 72, 0.95) 100%);
+      border: 1px solid rgba(203, 232, 224, 0.18);
+    }
+    .pastel-card-sand {
+      background: linear-gradient(145deg, rgba(235, 225, 206, 0.15) 0%, rgba(57, 51, 72, 0.95) 100%);
+      border: 1px solid rgba(235, 225, 206, 0.18);
+    }
+
+    .gold-pill {
+      background: linear-gradient(135deg, #C49768 0%, #9E7247 100%);
+      color: #FFFFFF;
+    }
+    .gold-pill-dark {
+      background: linear-gradient(135deg, rgba(182, 137, 91, 0.85) 0%, rgba(102, 76, 52, 0.92) 100%);
+      border: 1px solid rgba(255, 255, 255, 0.14);
+    }
+
+    /* Animations */
+    @keyframes rowFadeIn {
+      from { opacity: 0; transform: translateY(5px); }
+      to { opacity: 1; transform: translateY(0); }
+    }
+    .chat-row {
+      animation: rowFadeIn 0.16s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+    }
+
+    /* Custom Scrollbar */
+    .custom-scroll {
+      scrollbar-width: thin;
+      scrollbar-color: rgba(255, 255, 255, 0.18) transparent;
+    }
+    .custom-scroll::-webkit-scrollbar {
+      width: 5px;
+      height: 5px;
+    }
+    .custom-scroll::-webkit-scrollbar-track {
+      background: transparent;
+    }
+    .custom-scroll::-webkit-scrollbar-thumb {
+      background: rgba(255, 255, 255, 0.18);
+      border-radius: 9999px;
+    }
+    .custom-scroll::-webkit-scrollbar-thumb:hover {
+      background: rgba(255, 255, 255, 0.32);
+    }
+
+    @media (max-width: 1023px) {
+      .mobile-hidden {
+        display: none !important;
+      }
+    }
+  </style>
+</head>
+<body class="app-shell h-[100dvh] w-screen flex flex-col lg:flex-row overflow-hidden select-none">
+
+  <!-- ===================================================================== -->
+  <!-- 1. SIDEBAR VERTIKAL KIRI (KHUSUS DESKTOP - GAYA DRIBBBLE DASHBOARD)   -->
+  <!-- ===================================================================== -->
+  <aside class="hidden lg:flex flex-col items-center justify-between w-20 py-6 border-r border-white/5 shrink-0 z-30">
+    
+    <!-- Logo SVG Pengguna -->
+    <div class="flex flex-col items-center gap-2">
+      <div class="w-11 h-11 rounded-2xl overflow-hidden shadow-lg ring-2 ring-white/15 bg-[#383247] flex items-center justify-center" title="StreamSync Studio">
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" class="w-full h-full">
+          <defs>
+            <clipPath id="frame"><rect width="512" height="512" rx="96"/></clipPath>
+            <filter id="blur" x="-50%" y="-50%" width="200%" height="200%"><feGaussianBlur stdDeviation="7"/></filter>
+            <linearGradient id="abdomen" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#9a4a1a"/><stop offset="1" stop-color="#4a1e08"/></linearGradient>
+            <linearGradient id="pronotum" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#8a3d12"/><stop offset="1" stop-color="#3b1505"/></linearGradient>
+            <linearGradient id="wingA" x1="0" y1="1" x2="1" y2="0"><stop offset="0" stop-color="#7c3a10" stop-opacity="0.85"/><stop offset="1" stop-color="#d89b4a" stop-opacity="0.55"/></linearGradient>
+            <linearGradient id="wingB" x1="0" y1="1" x2="1" y2="0"><stop offset="0" stop-color="#e9c98a" stop-opacity="0.5"/><stop offset="1" stop-color="#f5e6c4" stop-opacity="0.15"/></linearGradient>
+            <linearGradient id="metal" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#f1f5f9"/><stop offset="0.35" stop-color="#cbd5e1"/><stop offset="0.75" stop-color="#8493a8"/><stop offset="1" stop-color="#475569"/></linearGradient>
+            <linearGradient id="fin" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#64748b"/><stop offset="1" stop-color="#334155"/></linearGradient>
+            <linearGradient id="flame" x1="1" y1="0" x2="0" y2="0"><stop offset="0" stop-color="#fffbe6"/><stop offset="0.25" stop-color="#fcd34d"/><stop offset="0.65" stop-color="#f97316" stop-opacity="0.85"/><stop offset="1" stop-color="#ef4444" stop-opacity="0"/></linearGradient>
+            <linearGradient id="sky" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#2f6fb5"/><stop offset="0.55" stop-color="#6fb1e3"/><stop offset="1" stop-color="#b9def4"/></linearGradient>
+            <radialGradient id="fire" cx="0.5" cy="0.5" r="0.5"><stop offset="0" stop-color="#fffbe6"/><stop offset="0.25" stop-color="#fde047"/><stop offset="0.55" stop-color="#f97316"/><stop offset="0.85" stop-color="#dc2626" stop-opacity="0.85"/><stop offset="1" stop-color="#7f1d1d" stop-opacity="0"/></radialGradient>
+            <radialGradient id="glow" cx="0.5" cy="0.5" r="0.5"><stop offset="0" stop-color="#fb923c" stop-opacity="0.75"/><stop offset="1" stop-color="#fb923c" stop-opacity="0"/></radialGradient>
+            <filter id="b3" x="-30%" y="-30%" width="160%" height="160%"><feGaussianBlur stdDeviation="3"/></filter>
+            <filter id="b5" x="-40%" y="-40%" width="180%" height="180%"><feGaussianBlur stdDeviation="5"/></filter>
+            <filter id="b10" x="-50%" y="-50%" width="200%" height="200%"><feGaussianBlur stdDeviation="10"/></filter>
+          </defs>
+          <rect width="512" height="512" rx="96" fill="url(#sky)"/>
+          <g clip-path="url(#frame)">
+            <g filter="url(#b5)" fill="#ffffff" opacity="0.95">
+              <circle cx="80" cy="85" r="28"/><circle cx="112" cy="68" r="36"/><circle cx="147" cy="80" r="30"/>
+              <circle cx="380" cy="75" r="24"/><circle cx="405" cy="60" r="32"/><circle cx="437" cy="70" r="28"/>
+            </g>
+            <circle cx="392" cy="372" r="70" fill="url(#glow)"/>
+            <g filter="url(#b3)">
+              <circle cx="350" cy="428" r="42" fill="url(#fire)"/><circle cx="436" cy="424" r="44" fill="url(#fire)"/><circle cx="392" cy="414" r="78" fill="url(#fire)"/>
+            </g>
+            <g transform="translate(140 362) rotate(-25)">
+              <path d="M-108 -11 C-150 -16 -190 -7 -222 0 C-190 7 -150 16 -108 11 Z" fill="url(#flame)"/>
+              <rect x="-100" y="-17" width="172" height="34" rx="3" fill="url(#metal)" stroke="#475569" stroke-width="1.5"/>
+              <path d="M72 -17 C102 -15 126 -7 142 0 C126 7 102 15 72 17 Z" fill="url(#metal)" stroke="#475569" stroke-width="1.5"/>
+            </g>
+            <g transform="translate(295 195) rotate(-8)">
+              <path d="M12 -16 C-8 -72 -82 -108 -152 -92 C-128 -58 -72 -28 -8 -14 Z" fill="url(#wingB)" stroke="#a87a3a" stroke-width="1.2"/>
+              <path d="M22 -18 C4 -56 -58 -82 -122 -76 C-104 -48 -62 -26 -14 -17 Z" fill="url(#wingA)" stroke="#5a2a0c" stroke-width="1.5"/>
+              <path d="M-82 4 C-74 -10 -30 -15 20 -13 L42 -6 L42 14 C0 21 -52 19 -82 4 Z" fill="url(#abdomen)" stroke="#2a0f03" stroke-width="1.5"/>
+              <ellipse cx="38" cy="2" rx="20" ry="15" fill="url(#pronotum)" stroke="#2a0f03" stroke-width="1.5"/>
+              <ellipse cx="62" cy="-2" rx="23" ry="17" fill="url(#pronotum)" stroke="#d9b45e" stroke-width="3"/>
+              <ellipse cx="88" cy="9" rx="10" ry="14" transform="rotate(22 88 9)" fill="#4a1d08" stroke="#2a0f03" stroke-width="1.5"/>
+            </g>
+          </g>
+        </svg>
+      </div>
+    </div>
+
+    <!-- Menu Ikon Tengah (Bulat Putih saat Aktif seperti Gambar Referensi) -->
+    <nav class="flex flex-col items-center gap-4">
+      <!-- Tombol Dashboard Utama -->
+      <button onclick="setRightPanelTab('question')" id="nav-side-home" class="w-11 h-11 rounded-full bg-white text-[#231E2E] shadow-lg flex items-center justify-center transition" title="Studio Utama">
+        <svg class="w-5 h-5" fill="none" stroke="currentColor" stroke-width="2.2" viewBox="0 0 24 24">
+          <path stroke-linecap="round" stroke-linejoin="round" d="M3 10.5L12 3l9 7.5v9a1.5 1.5 0 01-1.5 1.5h-15A1.5 1.5 0 013 19.5v-9z"/>
+          <path stroke-linecap="round" stroke-linejoin="round" d="M9 21V13.5h6V21"/>
+        </svg>
+      </button>
+
+      <!-- Tombol Tab Radar Pertanyaan -->
+      <button onclick="setRightPanelTab('question')" id="nav-side-question" class="w-11 h-11 rounded-full text-zinc-400 hover:text-white hover:bg-white/10 flex items-center justify-center transition relative" title="Radar Pertanyaan">
+        <svg class="w-5 h-5" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+          <circle cx="12" cy="12" r="9"/>
+          <path stroke-linecap="round" stroke-linejoin="round" d="M9.09 9a3 3 0 015.83 1c0 2-3 3-3 3m.08 4h.01"/>
+        </svg>
+        <span id="sideQDot" class="hidden absolute top-2 right-2 w-2 h-2 rounded-full bg-amber-400"></span>
+      </button>
+
+      <!-- Tombol Tab Gift & SuperChat -->
+      <button onclick="setRightPanelTab('gift')" id="nav-side-gift" class="w-11 h-11 rounded-full text-zinc-400 hover:text-white hover:bg-white/10 flex items-center justify-center transition relative" title="Gift & SuperChat IDR">
+        <svg class="w-5 h-5" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+          <rect x="3" y="8" width="18" height="4" rx="1"/>
+          <path d="M12 8v13m7-9v7a2 2 0 01-2 2H7a2 2 0 01-2-2v-7m2.5-4a2.5 2.5 0 010-5C10 3 12 8 12 8s2-5 4.5-5a2.5 2.5 0 010 5"/>
+        </svg>
+      </button>
+
+      <!-- Tombol Tab Auto-Clipper -->
+      <button onclick="setRightPanelTab('clip')" id="nav-side-clip" class="w-11 h-11 rounded-full text-zinc-400 hover:text-white hover:bg-white/10 flex items-center justify-center transition relative" title="Auto-Clipper Radar">
+        <svg class="w-5 h-5" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+          <rect x="2" y="4" width="20" height="16" rx="2"/>
+          <path d="M2 8h20M7 4v4m5-4v4m5-4v4"/>
+        </svg>
+      </button>
+
+      <!-- Tombol Jendela Sumber (Login TikTok/YT) -->
+      <button onclick="toggleSourceWindow()" id="sideSourceBtn" class="w-11 h-11 rounded-full text-zinc-400 hover:text-white hover:bg-white/10 flex items-center justify-center transition" title="Tampilkan / Sembunyikan Jendela Sumber">
+        <svg class="w-5 h-5" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+          <path stroke-linecap="round" stroke-linejoin="round" d="M2 12s3.5-7 10-7 10 7 10 7-3.5 7-10 7-10-7-10-7z"/>
+          <circle cx="12" cy="12" r="3"/>
+        </svg>
+      </button>
+
+      <!-- Tombol Pengaturan Opasitas & Pin -->
+      <button onclick="toggleSettingsModal()" class="w-11 h-11 rounded-full text-zinc-400 hover:text-white hover:bg-white/10 flex items-center justify-center transition" title="Pengaturan Suara TTS, Pin, & Opasitas">
+        <svg class="w-5 h-5" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+          <circle cx="12" cy="12" r="3"/>
+          <path stroke-linecap="round" stroke-linejoin="round" d="M19.4 15a1.65 1.65 0 00.33 1.82l.06.06a2 2 0 010 2.83 2 2 0 01-2.83 0l-.06-.06a1.65 1.65 0 00-1.82-.33 1.65 1.65 0 00-1 1.51V21a2 2 0 01-2 2 2 2 0 01-2-2v-.09A1.65 1.65 0 009 19.4a1.65 1.65 0 00-1.82.33l-.06.06a2 2 0 01-2.83 0 2 2 0 010-2.83l.06-.06a1.65 1.65 0 00.33-1.82 1.65 1.65 0 00-1.51-1H3a2 2 0 01-2-2 2 2 0 012-2h.09A1.65 1.65 0 004.6 9a1.65 1.65 0 00-.33-1.82l-.06-.06a2 2 0 010-2.83 2 2 0 012.83 0l.06.06a1.65 1.65 0 001.82.33H9a1.65 1.65 0 001-1.51V3a2 2 0 012-2 2 2 0 012 2v.09a1.65 1.65 0 001 1.51 1.65 1.65 0 001.82-.33l.06-.06a2 2 0 012.83 0 2 2 0 010 2.83l-.06.06a1.65 1.65 0 00-.33 1.82V9a1.65 1.65 0 001.51 1H21a2 2 0 012 2 2 2 0 01-2 2h-.09a1.65 1.65 0 00-1.51 1z"/>
+        </svg>
+      </button>
+    </nav>
+
+    <!-- Ikon Bawah (QR HP & Status Indikator) -->
+    <div class="flex flex-col items-center gap-4">
+      <button onclick="openQrModal()" class="w-11 h-11 rounded-full bg-[#383247] hover:bg-white hover:text-[#231E2E] text-zinc-200 flex items-center justify-center transition relative" title="Buka di HP via Wi-Fi">
+        <svg class="w-5 h-5" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+          <rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/>
+          <rect x="3" y="14" width="7" height="7" rx="1"/><path d="M14 14h3v3h-3zm4 4h3v3h-3zm0-4h3v2h-3zm-4 4h2v3h-2z"/>
+        </svg>
+        <span class="absolute top-2 right-2 w-2 h-2 rounded-full bg-rose-400 ring-2 ring-[#2B2638]"></span>
+      </button>
+
+      <button onclick="togglePin()" id="sidePinAvatar" class="w-10 h-10 rounded-full bg-[#383247] border-2 border-white/15 flex items-center justify-center text-xs font-extrabold text-zinc-200 hover:border-white transition" title="Status Pin Jendela">
+        SS
+      </button>
+    </div>
+  </aside>
+
+  <!-- ===================================================================== -->
+  <!-- 2. CONTAINER UTAMA (HEADER PIL + KONTEN BENTO 2 KOLOM ASIMETRIS)      -->
+  <!-- ===================================================================== -->
+  <div class="flex-1 flex flex-col min-w-0 h-full overflow-hidden">
+
+    <!-- HEADER BAR (GAYA PIL SEPERTI GAMBAR REFERENSI) -->
+    <header class="px-4 sm:px-7 pt-3 sm:pt-5 pb-3 shrink-0 z-20">
+      <div class="flex flex-wrap items-center justify-between gap-3">
+        
+        <!-- Kiri: Segmented Pill Switcher (Seperti tombol Creator | Collector) -->
+        <div class="flex items-center gap-2.5">
+          <!-- Tombol Menu Pengaturan di HP -->
+          <button onclick="toggleMobileControls()" class="lg:hidden w-10 h-10 rounded-full bg-[#383247] border border-white/10 flex items-center justify-center text-white">
+            <svg class="w-5 h-5" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" d="M4 6h16M4 12h16M4 18h10"/>
+            </svg>
+          </button>
+
+          <div class="bg-[#383247] p-1 rounded-full flex items-center border border-white/5 shadow-inner">
+            <button onclick="setChatFilter('all')" id="filter-all" class="px-4 sm:px-5 py-1.5 rounded-full text-xs font-extrabold bg-white text-[#231E2E] shadow transition">
+              Semua
+            </button>
+            <button onclick="setChatFilter('tiktok')" id="filter-tiktok" class="px-4 sm:px-5 py-1.5 rounded-full text-xs font-semibold text-zinc-300 hover:text-white transition">
+              TikTok
+            </button>
+            <button onclick="setChatFilter('youtube')" id="filter-youtube" class="px-4 sm:px-5 py-1.5 rounded-full text-xs font-semibold text-zinc-300 hover:text-white transition">
+              YouTube
+            </button>
+          </div>
+        </div>
+
+        <!-- Kanan: Input URL Pill Bars & Tombol Putih "+ Hubungkan" -->
+        <div id="controlDrawer" class="w-full lg:w-auto lg:flex-1 max-w-4xl flex flex-col sm:flex-row items-stretch sm:items-center justify-end gap-2.5">
+          
+          <!-- Input Pill TikTok URL -->
+          <div class="pill-input rounded-full px-4 py-2 flex items-center gap-2.5 flex-1 max-w-xs">
+            <svg class="w-4 h-4 text-pink-400 shrink-0" fill="none" stroke="currentColor" stroke-width="2.2" viewBox="0 0 24 24">
+              <circle cx="11" cy="11" r="8"/><path stroke-linecap="round" d="M21 21l-4.35-4.35"/>
+            </svg>
+            <input id="tiktokUrl" type="text" placeholder="URL / @username TikTok Live..."
+              class="bg-transparent w-full text-xs text-white placeholder-zinc-400 focus:outline-none">
+          </div>
+
+          <!-- Input Pill YouTube URL -->
+          <div class="pill-input rounded-full px-4 py-2 flex items-center gap-2.5 flex-1 max-w-xs">
+            <svg class="w-4 h-4 text-rose-400 shrink-0" fill="none" stroke="currentColor" stroke-width="2.2" viewBox="0 0 24 24">
+              <circle cx="11" cy="11" r="8"/><path stroke-linecap="round" d="M21 21l-4.35-4.35"/>
+            </svg>
+            <input id="youtubeUrl" type="text" placeholder="URL YouTube Live (watch?v=...)..."
+              class="bg-transparent w-full text-xs text-white placeholder-zinc-400 focus:outline-none">
+          </div>
+
+          <!-- Tombol Aksi Utama (Persis Tombol "+ Add NFT" di Gambar Referensi) -->
+          <div class="flex items-center gap-2 shrink-0">
+            <button onclick="connectStreams()" class="flex-1 sm:flex-initial bg-white hover:bg-zinc-100 text-[#231E2E] font-extrabold text-xs px-4 py-2 rounded-full shadow-lg flex items-center justify-center gap-2 transition active:scale-95">
+              <span class="w-5 h-5 rounded-full bg-[#231E2E] text-white flex items-center justify-center">
+                <svg class="w-3 h-3" fill="none" stroke="currentColor" stroke-width="3" viewBox="0 0 24 24">
+                  <path stroke-linecap="round" stroke-linejoin="round" d="M12 5v14m-7-7h14"/>
+                </svg>
+              </span>
+              <span>Hubungkan</span>
+            </button>
+
+            <button onclick="stopStreams()" class="bg-[#383247] hover:bg-rose-950/80 text-zinc-300 hover:text-rose-200 border border-white/10 text-xs font-bold px-4 py-2 rounded-full transition">
+              Stop
+            </button>
+
+            <!-- Tombol Pengaturan Cepat di Mobile -->
+            <button onclick="toggleSettingsModal()" class="lg:hidden bg-[#383247] text-zinc-200 border border-white/10 p-2 rounded-full">
+              <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+                <circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 00.33 1.82l.06.06a2 2 0 01-2.83 2.83l-.06-.06a1.65 1.65 0 00-1.82-.33 1.65 1.65 0 00-1 1.51V21a2 2 0 01-4 0v-.09A1.65 1.65 0 009 19.4a1.65 1.65 0 00-1.82.33l-.06.06a2 2 0 01-2.83-2.83l.06-.06a1.65 1.65 0 00.33-1.82 1.65 1.65 0 00-1.51-1H3a2 2 0 010-4h.09A1.65 1.65 0 004.6 9a1.65 1.65 0 00-.33-1.82l-.06-.06a2 2 0 012.83-2.83l.06.06a1.65 1.65 0 001.82.33H9a1.65 1.65 0 001-1.51V3a2 2 0 014 0v.09a1.65 1.65 0 001 1.51 1.65 1.65 0 001.82-.33l.06-.06a2 2 0 012.83 2.83l-.06.06a1.65 1.65 0 00-.33 1.82V9a1.65 1.65 0 001.51 1H21a2 2 0 010 4h-.09a1.65 1.65 0 00-1.51 1z"/>
+              </svg>
+            </button>
+          </div>
+
+        </div>
+      </div>
+    </header>
+
+    <!-- =================================================================== -->
+    <!-- WORKSPACE UTAMA (KIRI: SOROTAN + LIVE CHAT, KANAN: FEATURED CARD)   -->
+    <!-- =================================================================== -->
+    <main class="flex-1 grid grid-cols-12 gap-5 px-4 sm:px-7 pb-3 sm:pb-6 overflow-hidden min-h-0">
+
+      <!-- ----------------------------------------------------------------- -->
+      <!-- KOLOM KIRI/TENGAH (7 Kolom Desktop): SOROTAN & TABEL LIVE CHAT    -->
+      <!-- ----------------------------------------------------------------- -->
+      <div id="leftColumnWrapper" class="col-span-12 lg:col-span-7 flex flex-col gap-5 overflow-hidden min-h-0">
+
+        <!-- BAGIAN ATAS: RINGKASAN SOROTAN (Gaya Kartu "Recent Collections") -->
+        <div class="hidden sm:flex flex-col gap-2.5 shrink-0">
+          <div class="flex items-center justify-between">
+            <h2 class="text-base font-extrabold tracking-tight text-white">Status & Sorotan Stream</h2>
+            <div class="flex items-center gap-2 text-[11px] text-zinc-400">
+              <span>Sumber Browser:</span>
+              <button id="sourceBtn" onclick="toggleSourceWindow()" class="text-zinc-200 hover:text-white bg-[#383247] px-3 py-1 rounded-full border border-white/10 font-semibold transition">
+                Sembunyi
+              </button>
+            </div>
+          </div>
+
+          <div class="grid grid-cols-3 gap-3.5">
+            <!-- Kartu 1: Status Koneksi Platform -->
+            <div class="pastel-card-lavender rounded-[22px] p-3.5 flex flex-col justify-between gap-2">
+              <div class="flex items-center justify-between">
+                <span class="text-[11px] font-bold text-zinc-300">Koneksi Platform</span>
+                <span class="w-6 h-6 rounded-full bg-white/10 flex items-center justify-center text-white">
+                  <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" d="M5 12.55a11 11 0 0114.08 0M1.42 9a16 16 0 0121.16 0M8.53 16.11a6 6 0 016.95 0M12 20h.01"/>
+                  </svg>
+                </span>
+              </div>
+              <div class="space-y-1">
+                <div id="tiktokStatus" class="flex items-center gap-1.5 text-[11px] font-semibold text-zinc-200 truncate">
+                  <span class="w-2 h-2 rounded-full bg-zinc-400 shrink-0"></span>
+                  <span class="truncate">TikTok: Siaga</span>
+                </div>
+                <div id="youtubeStatus" class="flex items-center gap-1.5 text-[11px] font-semibold text-zinc-200 truncate">
+                  <span class="w-2 h-2 rounded-full bg-zinc-400 shrink-0"></span>
+                  <span class="truncate">YouTube: Siaga</span>
+                </div>
+              </div>
+            </div>
+
+            <!-- Kartu 2: Ringkasan Pertanyaan Masuk -->
+            <div onclick="setRightPanelTab('question')" class="pastel-card-mint rounded-[22px] p-3.5 flex flex-col justify-between gap-2 cursor-pointer hover:brightness-110 transition">
+              <div class="flex items-center justify-between">
+                <span class="text-[11px] font-bold text-emerald-200">Antrean Pertanyaan</span>
+                <span class="w-6 h-6 rounded-full bg-white/10 flex items-center justify-center text-emerald-200">
+                  <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+                    <circle cx="12" cy="12" r="9"/><path d="M9.09 9a3 3 0 015.83 1c0 2-3 3-3 3m.08 4h.01"/>
+                  </svg>
+                </span>
+              </div>
+              <div class="flex items-baseline justify-between">
+                <span id="cardQCount" class="text-xl font-extrabold text-white font-mono-code">0</span>
+                <span class="text-[10px] font-bold uppercase tracking-wider bg-emerald-950/60 text-emerald-300 px-2.5 py-0.5 rounded-full border border-emerald-400/20">
+                  Belum Dijawab
+                </span>
+              </div>
+            </div>
+
+            <!-- Kartu 3: Ringkasan Total Gift & Klip -->
+            <div onclick="setRightPanelTab('gift')" class="pastel-card-sand rounded-[22px] p-3.5 flex flex-col justify-between gap-2 cursor-pointer hover:brightness-110 transition">
+              <div class="flex items-center justify-between">
+                <span class="text-[11px] font-bold text-amber-200">Total Dukungan</span>
+                <span class="w-6 h-6 rounded-full bg-white/10 flex items-center justify-center text-amber-200">
+                  <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1"/>
+                  </svg>
+                </span>
+              </div>
+              <div class="flex items-baseline justify-between gap-1">
+                <span id="cardIdrTotal" class="text-sm sm:text-base font-extrabold text-white font-mono-code truncate">Rp 0</span>
+                <span id="cardClipMini" class="text-[10px] font-bold bg-[#B6895B]/30 text-amber-200 px-2 py-0.5 rounded-full shrink-0">0 Klip</span>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- BAGIAN BAWAH: LIVE CHAT STREAM (Gaya Panel "History" di Gambar Referensi) -->
+        <section id="panel-chat" class="flex-1 flex flex-col min-h-0 overflow-hidden">
+          <!-- Judul & Sub-Filter Kanan seperti "History | All history | Purchase | Transfer" -->
+          <div class="flex items-center justify-between mb-2.5 shrink-0">
+            <div class="flex items-center gap-2.5">
+              <h2 class="text-base sm:text-lg font-extrabold tracking-tight text-white">Live Chat Stream</h2>
+              <span id="totalChatCounter" class="bg-[#383247] text-zinc-200 border border-white/10 text-[11px] font-bold px-2.5 py-0.5 rounded-full font-mono-code">
+                0 Chat
+              </span>
+            </div>
+
+            <div class="flex items-center gap-4 text-xs font-semibold">
+              <button onclick="setChatCategoryFilter('all')" id="cat-all" class="text-white transition">Semua Komentar</button>
+              <button onclick="setChatCategoryFilter('question')" id="cat-question" class="text-zinc-400 hover:text-white transition hidden sm:inline">Pertanyaan</button>
+              <button onclick="setChatCategoryFilter('vip')" id="cat-vip" class="text-zinc-400 hover:text-white transition hidden sm:inline">Prioritas</button>
+              <button onclick="clearChat()" class="text-zinc-400 hover:text-rose-300 transition">Bersihkan</button>
+            </div>
+          </div>
+
+          <!-- Kontainer Tabel / Daftar Komentar Membulat -->
+          <div class="surface-card flex-1 rounded-[28px] flex flex-col overflow-hidden min-h-0 relative">
+            
+            <!-- Header Kolom Tabel seperti di Gambar Referensi -->
+            <div class="grid grid-cols-12 gap-2 px-5 py-3 bg-white/[0.03] border-b border-white/5 text-[11px] font-semibold text-zinc-400 shrink-0">
+              <div class="col-span-3 sm:col-span-2">Platform</div>
+              <div class="col-span-4 sm:col-span-3">Penonton</div>
+              <div class="col-span-5 sm:col-span-5">Komentar Live</div>
+              <div class="hidden sm:block sm:col-span-2 text-right">Waktu</div>
+            </div>
+
+            <!-- Daftar Baris Komentar -->
+            <div id="allChatList" class="custom-scroll flex-1 px-3 sm:px-4 py-2 overflow-y-auto divide-y divide-white/5 min-h-0">
+              <div id="emptyChatState" class="h-full flex flex-col items-center justify-center text-center p-6 text-zinc-400">
+                <div class="w-12 h-12 rounded-full bg-white/5 border border-white/10 flex items-center justify-center mb-3">
+                  <svg class="w-5 h-5 text-zinc-300" fill="none" stroke="currentColor" stroke-width="1.8" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" d="M8 10h8M8 14h5m-9 4l.8-3.2A8 8 0 1112 20a8.2 8.2 0 01-3.8-.9L4 20z"/>
+                  </svg>
+                </div>
+                <p class="text-xs sm:text-sm font-bold text-white">Menunggu Aliran Komentar Live</p>
+                <p class="text-[11px] text-zinc-400 max-w-xs mt-1">
+                  Masukkan URL TikTok Live dan YouTube Live pada kolom pil di atas lalu klik <b>Hubungkan</b>.
+                </p>
+              </div>
+            </div>
+
+            <!-- Tombol Lanjut Auto-Scroll -->
+            <button id="resumeScrollBtn" onclick="resumeAutoScroll()" class="hidden absolute bottom-4 left-1/2 -translate-x-1/2 bg-white text-[#231E2E] font-extrabold text-xs px-4 py-2 rounded-full shadow-2xl flex items-center gap-2 z-20 hover:scale-105 transition">
+              <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" d="M19 14l-7 7m0 0l-7-7m7 7V3"/>
+              </svg>
+              <span>Komentar Baru (Lanjut Scroll)</span>
+            </button>
+          </div>
+        </section>
+
+      </div>
+
+      <!-- ----------------------------------------------------------------- -->
+      <!-- KOLOM KANAN (5 Kolom Desktop): KARTU TINGGI FEATURED PANEL        -->
+      <!-- (Persis Kartu "Lynn Chang / Adventure Robot" di Gambar Referensi) -->
+      <!-- ----------------------------------------------------------------- -->
+      <section id="rightFeaturedColumn" class="col-span-12 lg:col-span-5 featured-panel rounded-[32px] p-5 flex flex-col justify-between overflow-hidden min-h-0 mobile-hidden">
+        
+        <!-- Header Kartu Kanan: Info Panel & 2 Tombol Bulat Kanan Atas -->
+        <div class="flex items-start justify-between gap-3 pb-4 border-b border-white/10 shrink-0">
+          <div class="space-y-2 flex-1 min-w-0">
+            <div class="flex items-center gap-2.5">
+              <div class="w-10 h-10 rounded-full bg-white/15 border border-white/20 flex items-center justify-center text-white font-extrabold text-xs shrink-0">
+                PRO
+              </div>
+              <div class="min-w-0">
+                <div class="flex items-center gap-1.5">
+                  <h3 id="rightPanelTitle" class="font-extrabold text-sm sm:text-base text-white truncate">Radar Pertanyaan</h3>
+                  <!-- Ikon Verified Check seperti gambar referensi -->
+                  <svg class="w-4 h-4 text-white shrink-0" viewBox="0 0 24 24" fill="currentColor">
+                    <path d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"/>
+                  </svg>
+                </div>
+                <p id="rightPanelSubtitle" class="text-[11px] text-zinc-300 truncate">Menyaring kalimat tanya penonton secara otomatis</p>
+              </div>
+            </div>
+
+            <!-- Sub-Tab Switcher untuk Kartu Kanan -->
+            <div class="inline-flex bg-black/25 p-1 rounded-full border border-white/10 text-[11px] font-bold">
+              <button onclick="setRightPanelTab('question')" id="rtab-question" class="px-3.5 py-1 rounded-full bg-white text-[#231E2E] transition">
+                Pertanyaan (<span id="qCountBadge">0</span>)
+              </button>
+              <button onclick="setRightPanelTab('gift')" id="rtab-gift" class="px-3.5 py-1 rounded-full text-zinc-300 hover:text-white transition">
+                Gift IDR
+              </button>
+              <button onclick="setRightPanelTab('clip')" id="rtab-clip" class="px-3.5 py-1 rounded-full text-zinc-300 hover:text-white transition">
+                Auto-Clip (<span id="clipCountBadge">0</span>)
+              </button>
+            </div>
+          </div>
+
+          <!-- 2 Tombol Aksi Bulat Vertikal (Persis Ikon Tas & Share di Gambar Referensi) -->
+          <div class="flex flex-col gap-2 shrink-0">
+            <button onclick="triggerManualClip()" class="w-10 h-10 rounded-full bg-white text-[#231E2E] hover:scale-105 shadow-md flex items-center justify-center transition" title="Tandai Momen Klip Sekarang">
+              <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2.2" viewBox="0 0 24 24">
+                <rect x="2" y="4" width="20" height="16" rx="2"/><path d="M12 9v6m-3-3h6"/>
+              </svg>
+            </button>
+            <button onclick="openQrModal()" class="w-10 h-10 rounded-full bg-white/15 hover:bg-white/25 text-white border border-white/15 flex items-center justify-center transition" title="Buka QR untuk Layar HP">
+              <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2.2" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" d="M4 16v2a2 2 0 002 2h12a2 2 0 002-2v-2M7 10l5-5m0 0l5 5m-5-5v12"/>
+              </svg>
+            </button>
+          </div>
+        </div>
+
+        <!-- Isi Konten Kartu Kanan (Berganti sesuai Tab: Pertanyaan / Gift / Klip) -->
+        <div class="flex-1 min-h-0 overflow-hidden my-3 flex flex-col">
+          
+          <!-- KONTEN 1: DAFTAR PERTANYAAN -->
+          <div id="questionList" class="custom-scroll flex-1 overflow-y-auto space-y-2.5 pr-1">
+            <div id="emptyQuestionState" class="h-full flex flex-col items-center justify-center text-center p-6 text-zinc-300/70">
+              <svg class="w-8 h-8 mb-2 opacity-60" fill="none" stroke="currentColor" stroke-width="1.8" viewBox="0 0 24 24">
+                <circle cx="12" cy="12" r="9"/><path stroke-linecap="round" d="M9.09 9a3 3 0 015.83 1c0 2-3 3-3 3m.08 4h.01"/>
+              </svg>
+              <p class="text-xs font-bold text-white">Belum Ada Pertanyaan</p>
+              <p class="text-[11px] mt-0.5">Komentar berisi pertanyaan akan otomatis disematkan di panel ini.</p>
+            </div>
+          </div>
+
+          <!-- KONTEN 2: DAFTAR GIFT & SUPERCHAT -->
+          <div id="giftList" class="hidden custom-scroll flex-1 overflow-y-auto space-y-2.5 pr-1">
+            <div id="emptyGiftState" class="h-full flex flex-col items-center justify-center text-center p-6 text-zinc-300/70">
+              <svg class="w-8 h-8 mb-2 opacity-60" fill="none" stroke="currentColor" stroke-width="1.8" viewBox="0 0 24 24">
+                <rect x="3" y="8" width="18" height="4" rx="1"/><path d="M12 8v13m7-9v7a2 2 0 01-2 2H7a2 2 0 01-2-2v-7"/>
+              </svg>
+              <p class="text-xs font-bold text-white">Belum Ada Gift / SuperChat</p>
+              <p class="text-[11px] mt-0.5">Setiap Gift TikTok dan SuperChat YouTube otomatis dikonversi ke Rupiah.</p>
+            </div>
+          </div>
+
+          <!-- KONTEN 3: DAFTAR AUTO-CLIPPER -->
+          <div id="clipList" class="hidden custom-scroll flex-1 overflow-y-auto space-y-2.5 pr-1">
+            <div id="emptyClipState" class="h-full flex flex-col items-center justify-center text-center p-6 text-zinc-300/70">
+              <svg class="w-8 h-8 mb-2 opacity-60" fill="none" stroke="currentColor" stroke-width="1.8" viewBox="0 0 24 24">
+                <rect x="2" y="4" width="20" height="16" rx="2"/><path d="M2 8h20"/>
+              </svg>
+              <p class="text-xs font-bold text-white">Auto-Clipper Siaga</p>
+              <p class="text-[11px] mt-0.5">Mencatat timestamp VOD otomatis saat lonjakan chat terjadi.</p>
+            </div>
+          </div>
+
+        </div>
+
+        <!-- Footer Kartu Kanan: Pil Metrik Emas/Bronze & Tombol Bulat Putih (Persis Bagian Bawah Kartu Robot) -->
+        <div class="pt-3 border-t border-white/10 shrink-0 space-y-3">
+          <div class="flex items-center justify-between">
+            <div>
+              <p class="text-xs text-zinc-300 font-medium">Ringkasan Sesi Live</p>
+              <p id="activeTtsLabel" class="text-[11px] text-zinc-400">Suara TTS: Semua Komentar</p>
+            </div>
+            <button onclick="copyTextById('obsUrlText', 'URL OBS Browser Source disalin!')" class="text-[11px] font-mono-code text-zinc-200 hover:text-white bg-black/25 px-3 py-1 rounded-full border border-white/10 transition">
+              Salin Link OBS
+            </button>
+          </div>
+
+          <div class="flex items-center gap-2.5">
+            <!-- Pil Kiri: Jumlah Komentar -->
+            <div class="gold-pill px-4 py-2.5 rounded-full flex items-center gap-2 text-xs font-extrabold shadow-md shrink-0">
+              <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2.2" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" d="M8 10h8M8 14h5m-9 4l.8-3.2A8 8 0 1112 20a8.2 8.2 0 01-3.8-.9L4 20z"/>
+              </svg>
+              <span id="bottomPillChats" class="font-mono-code">0</span>
+            </div>
+
+            <!-- Pil Tengah Lebar: Total Estimasi IDR (Seperti Pil "21.345 ETH" di Gambar Referensi) -->
+            <div class="gold-pill-dark flex-1 px-4 py-2 rounded-full flex items-center justify-between text-xs font-extrabold shadow-md min-w-0">
+              <span id="totalIdrBadge" class="font-mono-code text-white truncate">Rp 0</span>
+              <span class="w-6 h-6 rounded-full bg-black/30 flex items-center justify-center text-[10px] font-bold text-amber-200 shrink-0">
+                IDR
+              </span>
+            </div>
+
+            <!-- Tombol Bulat Putih Kanan (Bookmark Action) -->
+            <button onclick="triggerManualClip()" class="w-10 h-10 rounded-full bg-white text-[#231E2E] hover:scale-105 shadow-lg flex items-center justify-center shrink-0 transition" title="Tandai Momen Klip">
+              <svg class="w-4 h-4" fill="currentColor" viewBox="0 0 24 24">
+                <path d="M5 5a2 2 0 012-2h10a2 2 0 012 2v16l-7-3.5L5 21V5z"/>
+              </svg>
+            </button>
+          </div>
+        </div>
+
+      </section>
+
+    </main>
+
+    <!-- =================================================================== -->
+    <!-- NAVIGASI BAWAH KHUSUS HP / TABLET (TANPA EMOTICON, MURNI SVG)       -->
+    <!-- =================================================================== -->
+    <nav class="lg:hidden bg-[#231E2E]/95 backdrop-blur-lg border-t border-white/10 grid grid-cols-4 gap-1 px-3 py-2 shrink-0 z-30">
+      <button onclick="switchMobileView('chat')" id="mob-tab-chat" class="flex flex-col items-center justify-center py-1.5 rounded-2xl bg-white text-[#231E2E] font-extrabold text-[11px] transition">
+        <svg class="w-4 h-4 mb-0.5" fill="none" stroke="currentColor" stroke-width="2.2" viewBox="0 0 24 24">
+          <path stroke-linecap="round" stroke-linejoin="round" d="M8 10h8M8 14h5m-9 4l.8-3.2A8 8 0 1112 20a8.2 8.2 0 01-3.8-.9L4 20z"/>
+        </svg>
+        <span>Live Chat</span>
+      </button>
+
+      <button onclick="switchMobileView('question')" id="mob-tab-question" class="flex flex-col items-center justify-center py-1.5 rounded-2xl text-zinc-400 font-semibold text-[11px] transition relative">
+        <svg class="w-4 h-4 mb-0.5" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+          <circle cx="12" cy="12" r="9"/><path stroke-linecap="round" d="M9.09 9a3 3 0 015.83 1c0 2-3 3-3 3m.08 4h.01"/>
+        </svg>
+        <span>Pertanyaan</span>
+        <span id="mobQBadge" class="hidden absolute top-1 right-4 bg-amber-400 text-[#231E2E] text-[9px] font-extrabold px-1.5 rounded-full">0</span>
+      </button>
+
+      <button onclick="switchMobileView('gift')" id="mob-tab-gift" class="flex flex-col items-center justify-center py-1.5 rounded-2xl text-zinc-400 font-semibold text-[11px] transition">
+        <svg class="w-4 h-4 mb-0.5" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+          <rect x="3" y="8" width="18" height="4" rx="1"/><path d="M12 8v13m7-9v7a2 2 0 01-2 2H7a2 2 0 01-2-2v-7"/>
+        </svg>
+        <span>Gift IDR</span>
+      </button>
+
+      <button onclick="switchMobileView('clip')" id="mob-tab-clip" class="flex flex-col items-center justify-center py-1.5 rounded-2xl text-zinc-400 font-semibold text-[11px] transition">
+        <svg class="w-4 h-4 mb-0.5" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+          <rect x="2" y="4" width="20" height="16" rx="2"/><path d="M2 8h20"/>
+        </svg>
+        <span>Auto-Clip</span>
+      </button>
+    </nav>
+
+  </div>
+
+  <!-- ===================================================================== -->
+  <!-- MODAL PENGATURAN STUDIO (SUARA TTS, PIN JENDELA, OPASITAS, LINK)      -->
+  <!-- ===================================================================== -->
+  <div id="settingsModal" class="hidden fixed inset-0 bg-black/70 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+    <div class="surface-card max-w-md w-full rounded-[28px] p-6 border border-white/15 space-y-5">
+      <div class="flex items-center justify-between border-b border-white/10 pb-3">
+        <h3 class="font-extrabold text-sm text-white">Pengaturan Studio & Jendela</h3>
+        <button onclick="toggleSettingsModal()" class="w-8 h-8 rounded-full bg-white/10 hover:bg-white/20 text-white text-xs font-bold flex items-center justify-center">
+          ✕
+        </button>
+      </div>
+
+      <div class="space-y-4 text-xs">
+        <!-- Pengaturan TTS -->
+        <div class="flex items-center justify-between gap-3 bg-black/20 p-3.5 rounded-2xl border border-white/5">
+          <div>
+            <p class="font-bold text-white">Pembaca Suara (Smart TTS)</p>
+            <p class="text-[11px] text-zinc-400">Membacakan komentar secara otomatis</p>
+          </div>
+          <select id="ttsMode" onchange="updateTtsLabel()" class="bg-[#383247] text-white font-bold px-3 py-2 rounded-xl border border-white/10 focus:outline-none">
+            <option value="all" selected>Semua Komentar</option>
+            <option value="vip_question">Sultan & Pertanyaan</option>
+            <option value="question_only">Hanya Pertanyaan</option>
+            <option value="off">Mati (Off)</option>
+          </select>
+        </div>
+
+        <!-- Pin Jendela di Atas Game -->
+        <div class="flex items-center justify-between gap-3 bg-black/20 p-3.5 rounded-2xl border border-white/5">
+          <div>
+            <p class="font-bold text-white">Pin Jendela (Always-on-Top)</p>
+            <p class="text-[11px] text-zinc-400">Menahan aplikasi tetap di atas layar game</p>
+          </div>
+          <button id="pinBtn" onclick="togglePin()" class="bg-[#383247] hover:bg-white hover:text-[#231E2E] text-zinc-200 font-bold px-4 py-2 rounded-xl border border-white/10 transition">
+            Pin: OFF
+          </button>
+        </div>
+
+        <!-- Opasitas Jendela -->
+        <div class="space-y-2 bg-black/20 p-3.5 rounded-2xl border border-white/5">
+          <div class="flex items-center justify-between">
+            <span class="font-bold text-white">Transparansi Jendela (Opasitas)</span>
+            <span id="opacityLabel" class="font-mono-code font-bold text-zinc-200">100%</span>
+          </div>
+          <input id="opacitySlider" type="range" min="40" max="100" value="100" oninput="changeOpacity(this.value)" class="w-full accent-white cursor-pointer">
+        </div>
+
+        <!-- Informasi Link OBS & Mobile -->
+        <div class="space-y-2 bg-black/20 p-3.5 rounded-2xl border border-white/5">
+          <div class="flex items-center justify-between">
+            <span class="text-zinc-400">OBS Browser Source:</span>
+            <button onclick="copyTextById('obsUrlText', 'URL OBS disalin!')" class="font-mono-code text-white underline">
+              <code id="obsUrlText">http://localhost:4567</code>
+            </button>
+          </div>
+          <div class="flex items-center justify-between">
+            <span class="text-zinc-400">URL HP (Satu Wi-Fi):</span>
+            <button onclick="copyTextById('mobileUrlText', 'URL HP disalin!')" class="font-mono-code text-emerald-300 underline">
+              <code id="mobileUrlText">Memuat...</code>
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ===================================================================== -->
+  <!-- MODAL QR CODE UNTUK AKSES DARI HP                                     -->
+  <!-- ===================================================================== -->
+  <div id="qrModal" class="hidden fixed inset-0 bg-black/70 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+    <div class="surface-card max-w-sm w-full rounded-[28px] p-6 border border-white/15 text-center space-y-4">
+      <div class="flex items-center justify-between border-b border-white/10 pb-3">
+        <h3 class="font-extrabold text-sm text-white">Buka StreamSync di HP</h3>
+        <button onclick="closeQrModal()" class="w-8 h-8 rounded-full bg-white/10 hover:bg-white/20 text-white text-xs font-bold flex items-center justify-center">
+          ✕
+        </button>
+      </div>
+      <p class="text-xs text-zinc-300 leading-relaxed">
+        Pastikan HP terhubung ke <b>Wi-Fi yang sama</b> dengan PC ini, lalu scan QR Code atau buka URL berikut di browser HP Anda:
+      </p>
+      <div class="bg-white p-3.5 rounded-2xl inline-block mx-auto shadow-lg">
+        <img id="qrImage" src="" alt="QR Code IP Lokal" class="w-44 h-44 mx-auto rounded-lg">
+      </div>
+      <div>
+        <button onclick="copyTextById('mobileUrlText', 'Alamat IP berhasil disalin!')" class="w-full font-mono-code text-xs font-bold text-[#231E2E] bg-white hover:bg-zinc-200 py-2.5 px-4 rounded-full transition">
+          <span id="qrModalIpText">http://localhost:4567</span>
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- NOTIFIKASI TOAST -->
+  <div id="toastNotice" class="hidden fixed top-5 left-1/2 -translate-x-1/2 bg-white text-[#231E2E] font-extrabold text-xs px-5 py-2.5 rounded-full shadow-2xl z-50">
+    Tersalin
+  </div>
+
+  <!-- ===================================================================== -->
+  <!-- LOGIKA JAVASCRIPT & SOCKET.IO REAL-TIME                               -->
+  <!-- ===================================================================== -->
+  <script>
+    const socket = io();
+    let isPinned = false;
+    let totalChats = 0;
+    let totalSessionIdr = 0;
+    let unansweredQuestions = 0;
+    let totalClips = 0;
+    let activePlatformFilter = 'all';
+    let activeCategoryFilter = 'all';
+    let isAutoScrollPaused = false;
+    let activeRightTab = 'question';
+
+    // Fungsi pembersih emoticon dari teks yang dikirim oleh backend
+    function stripEmojis(text) {
+      if (!text) return '';
+      return String(text)
+        .replace(/[\u{1F300}-\u{1F9FF}\u{2600}-\u{26FF}\u{2700}-\u{27BF}\u{1F1E6}-\u{1F1FF}]/gu, '')
+        .replace(/\s+/g, ' ')
+        .trim();
+    }
+
+    window.addEventListener('DOMContentLoaded', () => {
+      const savedTiktok = localStorage.getItem('ss_tiktok_url');
+      const savedYoutube = localStorage.getItem('ss_youtube_url');
+      if (savedTiktok) document.getElementById('tiktokUrl').value = savedTiktok;
+      if (savedYoutube) document.getElementById('youtubeUrl').value = savedYoutube;
+
+      const chatContainer = document.getElementById('allChatList');
+      chatContainer.addEventListener('scroll', () => {
+        const distanceToBottom = chatContainer.scrollHeight - chatContainer.scrollTop - chatContainer.clientHeight;
+        if (distanceToBottom > 90) {
+          isAutoScrollPaused = true;
+          document.getElementById('resumeScrollBtn').classList.remove('hidden');
+        } else {
+          isAutoScrollPaused = false;
+          document.getElementById('resumeScrollBtn').classList.add('hidden');
+        }
+      });
+    });
+
+    function showToast(msg) {
+      const t = document.getElementById('toastNotice');
+      t.innerText = stripEmojis(msg);
+      t.classList.remove('hidden');
+      setTimeout(() => t.classList.add('hidden'), 2000);
+    }
+
+    function copyTextById(elId, toastMsg) {
+      const text = document.getElementById(elId).innerText;
+      navigator.clipboard.writeText(text);
+      showToast(toastMsg || 'Tersalin');
+    }
+
+    function toggleSettingsModal() {
+      document.getElementById('settingsModal').classList.toggle('hidden');
+    }
+
+    function updateTtsLabel() {
+      const select = document.getElementById('ttsMode');
+      const text = select.options[select.selectedIndex].text;
+      document.getElementById('activeTtsLabel').innerText = `Suara TTS: ${text}`;
+    }
+
+    function openQrModal() {
+      const mobileUrl = document.getElementById('mobileUrlText').innerText || window.location.origin;
+      document.getElementById('qrModalIpText').innerText = mobileUrl;
+      document.getElementById('qrImage').src = `https://api.qrserver.com/v1/create-qr-code/?size=220x220&data=${encodeURIComponent(mobileUrl)}`;
+      document.getElementById('qrModal').classList.remove('hidden');
+    }
+
+    function closeQrModal() {
+      document.getElementById('qrModal').classList.add('hidden');
+    }
+
+    function toggleMobileControls() {
+      const drawer = document.getElementById('controlDrawer');
+      drawer.classList.toggle('hidden');
+    }
+
+    // Berpindah Tab pada Featured Panel Kanan (Pertanyaan / Gift / Auto-Clip)
+    function setRightPanelTab(tab) {
+      activeRightTab = tab;
+      const qList = document.getElementById('questionList');
+      const gList = document.getElementById('giftList');
+      const cList = document.getElementById('clipList');
+      const title = document.getElementById('rightPanelTitle');
+      const subtitle = document.getElementById('rightPanelSubtitle');
+
+      qList.classList.add('hidden');
+      gList.classList.add('hidden');
+      cList.classList.add('hidden');
+
+      if (tab === 'question') {
+        qList.classList.remove('hidden');
+        title.innerText = 'Radar Pertanyaan';
+        subtitle.innerText = 'Menyaring kalimat tanya penonton secara otomatis';
+      } else if (tab === 'gift') {
+        gList.classList.remove('hidden');
+        title.innerText = 'Gift & SuperChat (IDR)';
+        subtitle.innerText = 'Konversi dukungan penonton ke estimasi Rupiah';
+      } else if (tab === 'clip') {
+        cList.classList.remove('hidden');
+        title.innerText = 'Auto-Clipper Radar';
+        subtitle.innerText = 'Daftar timestamp VOD saat momen ramai terdeteksi';
+      }
+
+      ['question', 'gift', 'clip'].forEach(t => {
+        const btn = document.getElementById(`rtab-${t}`);
+        if (btn) {
+          btn.className = (t === tab)
+            ? 'px-3.5 py-1 rounded-full bg-white text-[#231E2E] transition font-extrabold'
+            : 'px-3.5 py-1 rounded-full text-zinc-300 hover:text-white transition font-semibold';
+        }
+      });
+
+      // Update ikon aktif di Sidebar Kiri Desktop
+      ['home', 'question', 'gift', 'clip'].forEach(s => {
+        const sideBtn = document.getElementById(`nav-side-${s}`);
+        if (!sideBtn) return;
+        const isMatch = (s === tab) || (s === 'home' && tab === 'question');
+        sideBtn.className = isMatch
+          ? 'w-11 h-11 rounded-full bg-white text-[#231E2E] shadow-lg flex items-center justify-center transition relative'
+          : 'w-11 h-11 rounded-full text-zinc-400 hover:text-white hover:bg-white/10 flex items-center justify-center transition relative';
+      });
+    }
+
+    // Navigasi Bawah Khusus Layar HP (< 1024px)
+    function switchMobileView(view) {
+      const leftCol = document.getElementById('leftColumnWrapper');
+      const rightCol = document.getElementById('rightFeaturedColumn');
+
+      if (view === 'chat') {
+        leftCol.classList.remove('mobile-hidden');
+        rightCol.classList.add('mobile-hidden');
+      } else {
+        leftCol.classList.add('mobile-hidden');
+        rightCol.classList.remove('mobile-hidden');
+        setRightPanelTab(view);
+      }
+
+      ['chat', 'question', 'gift', 'clip'].forEach(t => {
+        const btn = document.getElementById(`mob-tab-${t}`);
+        if (t === view) {
+          btn.className = 'flex flex-col items-center justify-center py-1.5 rounded-2xl bg-white text-[#231E2E] font-extrabold text-[11px] transition relative';
+        } else {
+          btn.className = 'flex flex-col items-center justify-center py-1.5 rounded-2xl text-zinc-400 font-semibold text-[11px] transition relative';
+        }
+      });
+    }
+
+    // Filter Platform & Kategori pada Daftar Live Chat
+    function applyChatFilters() {
+      const rows = document.querySelectorAll('#allChatList .chat-row');
+      rows.forEach(row => {
+        const plat = row.getAttribute('data-platform');
+        const isQ = row.getAttribute('data-question') === 'true';
+        const isVip = row.getAttribute('data-vip') === 'true';
+
+        const matchPlat = (activePlatformFilter === 'all' || activePlatformFilter === plat);
+        let matchCat = true;
+        if (activeCategoryFilter === 'question') matchCat = isQ;
+        if (activeCategoryFilter === 'vip') matchCat = isVip;
+
+        if (matchPlat && matchCat) {
+          row.classList.remove('hidden');
+        } else {
+          row.classList.add('hidden');
+        }
+      });
+    }
+
+    function setChatFilter(platform) {
+      activePlatformFilter = platform;
+      ['all', 'tiktok', 'youtube'].forEach(p => {
+        const btn = document.getElementById(`filter-${p}`);
+        btn.className = (p === platform)
+          ? 'px-4 sm:px-5 py-1.5 rounded-full text-xs font-extrabold bg-white text-[#231E2E] shadow transition'
+          : 'px-4 sm:px-5 py-1.5 rounded-full text-xs font-semibold text-zinc-300 hover:text-white transition';
+      });
+      applyChatFilters();
+    }
+
+    function setChatCategoryFilter(category) {
+      activeCategoryFilter = category;
+      ['all', 'question', 'vip'].forEach(c => {
+        const btn = document.getElementById(`cat-${c}`);
+        if (!btn) return;
+        btn.className = (c === category)
+          ? 'text-white font-extrabold transition'
+          : 'text-zinc-400 hover:text-white font-semibold transition hidden sm:inline';
+      });
+      applyChatFilters();
+    }
+
+    function resumeAutoScroll() {
+      const allChatList = document.getElementById('allChatList');
+      allChatList.scrollTop = allChatList.scrollHeight;
+      isAutoScrollPaused = false;
+      document.getElementById('resumeScrollBtn').classList.add('hidden');
+    }
+
+    function speakIndonesian(text, category) {
+      const mode = document.getElementById('ttsMode').value;
+      if (mode === 'off' || !text || !('speechSynthesis' in window)) return;
+      if (mode === 'vip_question' && category !== 'gift' && category !== 'question' && category !== 'vip') return;
+      if (mode === 'question_only' && category !== 'question') return;
+
+      if (window.speechSynthesis.pending && window.speechSynthesis.speaking && category !== 'gift') return;
+
+      const utterance = new SpeechSynthesisUtterance(stripEmojis(text));
+      utterance.lang = 'id-ID';
+      utterance.rate = 1.1;
+      window.speechSynthesis.speak(utterance);
+    }
+
+    function connectStreams() {
+      const tiktokUrl = document.getElementById('tiktokUrl').value.trim();
+      const youtubeUrl = document.getElementById('youtubeUrl').value.trim();
+      localStorage.setItem('ss_tiktok_url', tiktokUrl);
+      localStorage.setItem('ss_youtube_url', youtubeUrl);
+
+      socket.emit('start-stream', { tiktokUrl, youtubeUrl });
+      showToast('Menghubungkan ke stream...');
+    }
+
+    function stopStreams() {
+      socket.emit('stop-stream');
+      showToast('Stream dihentikan');
+    }
+
+    function toggleSourceWindow() {
+      socket.emit('toggle-source');
+    }
+
+    function triggerManualClip() {
+      socket.emit('manual-clip');
+      showToast('Momen Klip Ditandai');
+    }
+
+    function togglePin() {
+      isPinned = !isPinned;
+      socket.emit('toggle-pin', isPinned);
+      const btn = document.getElementById('pinBtn');
+      const avatar = document.getElementById('sidePinAvatar');
+      btn.innerText = isPinned ? 'Pin: ON' : 'Pin: OFF';
+      btn.className = isPinned
+        ? 'bg-white text-[#231E2E] font-extrabold px-4 py-2 rounded-xl transition'
+        : 'bg-[#383247] hover:bg-white hover:text-[#231E2E] text-zinc-200 font-bold px-4 py-2 rounded-xl border border-white/10 transition';
+
+      if (avatar) {
+        avatar.className = isPinned
+          ? 'w-10 h-10 rounded-full bg-white text-[#231E2E] border-2 border-white flex items-center justify-center text-xs font-extrabold transition'
+          : 'w-10 h-10 rounded-full bg-[#383247] border-2 border-white/15 flex items-center justify-center text-xs font-extrabold text-zinc-200 hover:border-white transition';
+      }
+      showToast(isPinned ? 'Pin di Atas Game: Aktif' : 'Pin di Atas Game: Nonaktif');
+    }
+
+    function changeOpacity(val) {
+      const opacity = Math.min(100, Math.max(40, Number(val) || 100));
+      document.documentElement.style.setProperty('--ui-opacity', (opacity / 100).toFixed(2));
+      document.getElementById('opacityLabel').innerText = opacity + '%';
+      socket.emit('set-opacity', opacity);
+    }
+
+    function clearChat() {
+      document.getElementById('allChatList').innerHTML = '';
+      totalChats = 0;
+      document.getElementById('totalChatCounter').innerText = '0 Chat';
+      document.getElementById('bottomPillChats').innerText = '0';
+    }
+
+    socket.on('server-info', (info) => {
+      document.getElementById('obsUrlText').innerText = info.obsUrl;
+      document.getElementById('mobileUrlText').innerText = info.mobileUrl;
+    });
+
+    socket.on('source-visibility', (isVisible) => {
+      const btn = document.getElementById('sourceBtn');
+      const sideBtn = document.getElementById('sideSourceBtn');
+      if (btn) {
+        btn.innerText = isVisible ? 'Tampil' : 'Sembunyi';
+        btn.className = isVisible
+          ? 'bg-white text-[#231E2E] px-3 py-1 rounded-full font-extrabold transition'
+          : 'text-zinc-200 hover:text-white bg-[#383247] px-3 py-1 rounded-full border border-white/10 font-semibold transition';
+      }
+      if (sideBtn) {
+        sideBtn.className = isVisible
+          ? 'w-11 h-11 rounded-full bg-white text-[#231E2E] shadow-lg flex items-center justify-center transition'
+          : 'w-11 h-11 rounded-full text-zinc-400 hover:text-white hover:bg-white/10 flex items-center justify-center transition';
+      }
+    });
+
+    socket.on('platform-status', (data) => {
+      const el = document.getElementById(data.platform === 'tiktok' ? 'tiktokStatus' : 'youtubeStatus');
+      if (!el) return;
+      let dotColor = 'bg-zinc-400';
+      if (data.state === 'connecting') dotColor = 'bg-amber-400 animate-ping';
+      if (data.state === 'connected') dotColor = 'bg-emerald-400';
+      if (data.state === 'error') dotColor = 'bg-rose-500';
+      el.innerHTML = `<span class="w-2 h-2 rounded-full ${dotColor} shrink-0"></span><span class="truncate">${stripEmojis(data.message)}</span>`;
+    });
+
+    // TAMPILKAN 100% SEMUA KOMENTAR MASUK DALAM FORMAT BARIS BERSIH (TANPA EMOTICON)
+    socket.on('new-chat', (chat) => {
+      const emptyState = document.getElementById('emptyChatState');
+      if (emptyState) emptyState.remove();
+
+      totalChats++;
+      document.getElementById('totalChatCounter').innerText = `${totalChats} Chat`;
+      document.getElementById('bottomPillChats').innerText = totalChats;
+
+      const isTiktok = chat.platform === 'tiktok';
+      const platformBadge = isTiktok
+        ? '<span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-[10px] font-extrabold bg-pink-500/20 text-pink-200 border border-pink-400/30">TikTok</span>'
+        : '<span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-[10px] font-extrabold bg-rose-500/20 text-rose-200 border border-rose-400/30">YouTube</span>';
+
+      const cleanBadgeText = stripEmojis(chat.priorityBadge);
+      let priorityPill = '';
+      let rowHighlight = 'hover:bg-white/[0.03]';
+
+      if (chat.priorityLevel === 'vip') {
+        rowHighlight = 'bg-amber-500/10 hover:bg-amber-500/15';
+        priorityPill = `<span class="inline-block bg-amber-400 text-[#231E2E] text-[9px] font-extrabold px-2 py-0.5 rounded-full ml-1.5">${cleanBadgeText || 'Sultan'}</span>`;
+      } else if (chat.priorityLevel === 'new') {
+        priorityPill = `<span class="inline-block bg-sky-400/20 text-sky-200 border border-sky-400/30 text-[9px] font-bold px-2 py-0.5 rounded-full ml-1.5">${cleanBadgeText || 'Baru'}</span>`;
+      } else if (chat.priorityLevel === 'loyal') {
+        priorityPill = `<span class="inline-block bg-purple-400/20 text-purple-200 border border-purple-400/30 text-[9px] font-bold px-2 py-0.5 rounded-full ml-1.5">${cleanBadgeText || 'Loyal'}</span>`;
+      }
+
+      const isVipBool = chat.priorityLevel === 'vip' || chat.priorityLevel === 'loyal';
+      const matchPlat = (activePlatformFilter === 'all' || activePlatformFilter === chat.platform);
+      let matchCat = true;
+      if (activeCategoryFilter === 'question') matchCat = !!chat.isQuestion;
+      if (activeCategoryFilter === 'vip') matchCat = isVipBool;
+      const hiddenClass = (matchPlat && matchCat) ? '' : 'hidden';
+
+      const chatRowHtml = `
+        <div id="msg-${chat.id}" data-platform="${chat.platform}" data-question="${!!chat.isQuestion}" data-vip="${isVipBool}"
+          class="chat-row ${hiddenClass} ${rowHighlight} grid grid-cols-12 gap-2 items-center px-2 py-2.5 rounded-2xl transition">
+          <div class="col-span-3 sm:col-span-2">
+            ${platformBadge}
+          </div>
+          <div class="col-span-4 sm:col-span-3 min-w-0 pr-1">
+            <span class="font-bold text-xs text-white truncate block">${chat.author}</span>
+            ${priorityPill}
+          </div>
+          <div class="col-span-5 sm:col-span-5 min-w-0">
+            <p class="text-xs sm:text-sm text-zinc-100 leading-relaxed break-words select-text">${chat.message}</p>
+          </div>
+          <div class="hidden sm:block sm:col-span-2 text-right font-mono-code text-[11px] text-zinc-400">
+            ${chat.time}
+          </div>
+        </div>
+      `;
+
+      const allChatList = document.getElementById('allChatList');
+      allChatList.insertAdjacentHTML('beforeend', chatRowHtml);
+      if (allChatList.children.length > 300) allChatList.removeChild(allChatList.firstChild);
+
+      if (!isAutoScrollPaused) {
+        allChatList.scrollTop = allChatList.scrollHeight;
+      }
+
+      // Salin ke Panel Kanan (Radar Pertanyaan) jika terdeteksi pertanyaan
+      if (chat.isQuestion) {
+        const emptyQ = document.getElementById('emptyQuestionState');
+        if (emptyQ) emptyQ.remove();
+
+        unansweredQuestions++;
+        updateQuestionBadges();
+
+        const qId = `q-${chat.id}`;
+        const qHtml = `
+          <div id="${qId}" class="chat-row surface-inner p-3.5 rounded-2xl flex items-start justify-between gap-3">
+            <div class="space-y-1 min-w-0 flex-1">
+              <div class="flex items-center gap-2">
+                ${platformBadge}
+                <span class="font-bold text-xs text-white truncate">${chat.author}</span>
+                <span class="font-mono-code text-[10px] text-zinc-400 ml-auto">${chat.time}</span>
+              </div>
+              <p class="text-xs sm:text-sm text-zinc-100 leading-relaxed break-words select-text pt-0.5">${chat.message}</p>
+            </div>
+            <button onclick="dismissQuestion('${qId}')" class="bg-white hover:bg-zinc-200 text-[#231E2E] text-[10px] font-extrabold px-3 py-1.5 rounded-full shrink-0 transition">
+              Selesai
+            </button>
+          </div>
+        `;
+        const qList = document.getElementById('questionList');
+        qList.insertAdjacentHTML('beforeend', qHtml);
+        qList.scrollTop = qList.scrollHeight;
+      }
+
+      const ttsCategory = chat.priorityLevel === 'vip' ? 'vip' : (chat.isQuestion ? 'question' : 'normal');
+      speakIndonesian(chat.ttsText, ttsCategory);
+    });
+
+    function updateQuestionBadges() {
+      document.getElementById('qCountBadge').innerText = unansweredQuestions;
+      const cardQ = document.getElementById('cardQCount');
+      if (cardQ) cardQ.innerText = unansweredQuestions;
+
+      const mobQ = document.getElementById('mobQBadge');
+      const sideDot = document.getElementById('sideQDot');
+      if (unansweredQuestions > 0) {
+        mobQ.innerText = unansweredQuestions;
+        mobQ.classList.remove('hidden');
+        if (sideDot) sideDot.classList.remove('hidden');
+      } else {
+        mobQ.classList.add('hidden');
+        if (sideDot) sideDot.classList.add('hidden');
+      }
+    }
+
+    function dismissQuestion(elementId) {
+      const el = document.getElementById(elementId);
+      if (el) {
+        el.remove();
+        unansweredQuestions = Math.max(0, unansweredQuestions - 1);
+        updateQuestionBadges();
+      }
+    }
+
+    // GIFT & SUPERCHAT MASUK
+    socket.on('new-gift', (gift) => {
+      const emptyGift = document.getElementById('emptyGiftState');
+      if (emptyGift) emptyGift.remove();
+
+      totalSessionIdr += gift.estimatedIdr;
+      const fmtTotal = new Intl.NumberFormat('id-ID', { style: 'currency', currency: 'IDR', maximumFractionDigits: 0 }).format(totalSessionIdr);
+      const fmtGift = new Intl.NumberFormat('id-ID', { style: 'currency', currency: 'IDR', maximumFractionDigits: 0 }).format(gift.estimatedIdr);
+
+      document.getElementById('totalIdrBadge').innerText = fmtTotal;
+      const cardIdr = document.getElementById('cardIdrTotal');
+      if (cardIdr) cardIdr.innerText = fmtTotal;
+
+      const badge = gift.platform === 'tiktok'
+        ? '<span class="bg-pink-500/20 text-pink-200 border border-pink-400/30 text-[9px] font-extrabold px-2 py-0.5 rounded-full">TikTok</span>'
+        : '<span class="bg-rose-500/20 text-rose-200 border border-rose-400/30 text-[9px] font-extrabold px-2 py-0.5 rounded-full">YouTube</span>';
+
+      const giftHtml = `
+        <div class="chat-row surface-inner p-3.5 rounded-2xl flex items-center justify-between gap-3">
+          <div class="min-w-0 flex-1 space-y-1">
+            <div class="flex items-center gap-2">
+              ${badge}
+              <span class="font-bold text-xs text-white truncate">${gift.author}</span>
+            </div>
+            <p class="text-xs text-zinc-300 break-words">${stripEmojis(gift.giftName)}</p>
+          </div>
+          <span class="font-mono-code text-xs font-extrabold text-[#231E2E] bg-[#CBE8E0] px-3 py-1 rounded-full shrink-0">
+            ${fmtGift}
+          </span>
+        </div>
+      `;
+      document.getElementById('giftList').insertAdjacentHTML('afterbegin', giftHtml);
+      speakIndonesian(gift.ttsText, 'gift');
+    });
+
+    // AUTO-CLIPPER MOMEN HYPE MASUK
+    socket.on('clip-alert', (clip) => {
+      const emptyClip = document.getElementById('emptyClipState');
+      if (emptyClip) emptyClip.remove();
+
+      totalClips++;
+      document.getElementById('clipCountBadge').innerText = totalClips;
+      const cardClipMini = document.getElementById('cardClipMini');
+      if (cardClipMini) cardClipMini.innerText = `${totalClips} Klip`;
+
+      const encodedCmd = encodeURIComponent(clip.ytDlpCommand);
+      const cleanCategory = stripEmojis(clip.category) || 'Momen Hype Terdeteksi';
+
+      const clipHtml = `
+        <div class="chat-row surface-inner p-3.5 rounded-2xl space-y-2.5">
+          <div class="flex items-center justify-between">
+            <span class="font-bold text-xs text-amber-200">${cleanCategory}</span>
+            <span class="font-mono-code text-[10px] text-zinc-400">${clip.createdAt}</span>
+          </div>
+          <div class="text-xs text-zinc-200 flex items-center justify-between bg-black/25 px-3 py-2 rounded-xl border border-white/5">
+            <span>Rentang VOD:</span>
+            <b class="font-mono-code text-white">${clip.startTime} - ${clip.endTime}</b>
+          </div>
+          <p class="text-[11px] text-zinc-300">${stripEmojis(clip.note)}</p>
+          <button onclick="copyClipCommand('${encodedCmd}', this)" class="w-full bg-white hover:bg-zinc-200 text-[#231E2E] text-xs font-extrabold py-2 rounded-full transition">
+            Salin Perintah Potong Video
+          </button>
+        </div>
+      `;
+      document.getElementById('clipList').insertAdjacentHTML('afterbegin', clipHtml);
+    });
+
+    function copyClipCommand(encodedCmd, btnEl) {
+      const cmd = decodeURIComponent(encodedCmd);
+      navigator.clipboard.writeText(cmd);
+      const originalText = btnEl.innerText;
+      btnEl.innerText = 'Perintah Disalin';
+      setTimeout(() => { btnEl.innerText = originalText; }, 2000);
+    }
+  </script>
+</body>
+</html>
