@@ -26,7 +26,7 @@
   <img src="https://img.shields.io/badge/Tailwind_CSS-38B2AC?style=for-the-badge&logo=tailwind-css&logoColor=white" />
 </p>
 
-## 🚀 Cara Instalasi
+## Cara Instalasi
 1. Clone repositori ini:
    ```bash
    git clone [https://github.com/satiyoo8879/streamsync-pro.git](https://github.com/satiyoo8879/streamsync-pro.git)
